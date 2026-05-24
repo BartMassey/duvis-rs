@@ -134,44 +134,99 @@ fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors:
         return;
     }
 
-    let total_size: u64 = children.iter().map(|&c| state.duvis.entry(c).size()).sum();
-    if total_size == 0 {
+    let total: u64 = children.iter().map(|&c| state.duvis.entry(c).size()).sum();
+    if total == 0 {
         return;
     }
 
-    let horizontal = r.w > r.h;
+    let horizontal = r.w >= child_height;
     let span = if horizontal { r.w } else { child_height };
-    let mut child_x = r.x;
-    let mut remaining = span;
 
+    // Classify children: any whose proportional slice along the split axis
+    // is below MIN_DIM goes into the "excess" bucket and is drawn as one
+    // composite "+N more" rectangle covering its combined slice. Preserves
+    // the slice sizes of the kept children.
+    let threshold = MIN_DIM * total as f64 / span;
+    let mut kept: Vec<usize> = Vec::with_capacity(children.len());
+    let mut excess_count: usize = 0;
+    let mut excess_total: u64 = 0;
     for &c in children {
-        if remaining <= 0.0 {
-            break;
+        let sz = state.duvis.entry(c).size();
+        if (sz as f64) >= threshold {
+            kept.push(c);
+        } else {
+            excess_count += 1;
+            excess_total += sz;
         }
-        let raw = (state.duvis.entry(c).size() as f64 / total_size as f64) * span;
-        let size = raw.max(1.0).min(remaining);
+    }
 
+    let excess_slice = (excess_total as f64 / total as f64) * span;
+    let has_excess = excess_count > 0 && excess_slice >= MIN_DIM;
+    // If the excess bucket can't form a MIN_DIM rectangle of its own, fold
+    // its share back into the kept children (renormalize) so the body has
+    // no unclaimed gap.
+    let denom: u64 = if has_excess { total } else { total - excess_total };
+    if denom == 0 {
+        return;
+    }
+
+    let mut cur_x = r.x;
+    let mut cur_y_off = 0.0;
+    for &c in &kept {
+        let size = state.duvis.entry(c).size() as f64;
+        let s = (size / denom as f64) * span;
         let sub = if horizontal {
             Rect {
-                x: child_x,
+                x: cur_x,
                 y: child_y,
-                w: size,
+                w: s,
                 h: child_height,
             }
         } else {
             Rect {
-                x: child_x,
-                y: child_y + (child_height - remaining),
+                x: r.x,
+                y: child_y + cur_y_off,
                 w: r.w,
-                h: size,
+                h: s,
             }
         };
         draw_tree(cr, state, c, sub, &my_path);
         if horizontal {
-            child_x += size;
+            cur_x += s;
+        } else {
+            cur_y_off += s;
         }
-        remaining -= size;
     }
+
+    if has_excess {
+        let sub = if horizontal {
+            Rect {
+                x: cur_x,
+                y: child_y,
+                w: excess_slice,
+                h: child_height,
+            }
+        } else {
+            Rect {
+                x: r.x,
+                y: child_y + cur_y_off,
+                w: r.w,
+                h: excess_slice,
+            }
+        };
+        draw_excess(cr, state, sub, excess_count, excess_total);
+    }
+}
+
+fn draw_excess(cr: &cairo::Context, state: &State, r: Rect, count: usize, size: u64) {
+    cr.rectangle(r.x, r.y, r.w, r.h);
+    let _ = cr.stroke();
+    let _ = cr.save();
+    cr.rectangle(r.x, r.y, r.w, r.h);
+    cr.clip();
+    cr.move_to(r.x + TEXT_INSET, r.y + state.font_size);
+    let _ = cr.show_text(&format!("+{} more ({})", count, size));
+    let _ = cr.restore();
 }
 
 /// Top-level draw entry: paints ancestor header bands for the
