@@ -21,9 +21,18 @@ use gtk4::prelude::*;
 
 use crate::tree::Duvis;
 
-const MIN_DIM: f64 = 10.0;
+// Minimum rectangle dimensions are derived from the font size: a rect must
+// be tall enough to fit one label band and wide enough for ~8 average
+// glyphs (plus inset on each side).
+const MIN_CHARS: f64 = 8.0;
+const AVG_GLYPH_FRAC: f64 = 0.55; // Helvetica average advance ≈ 0.55 × font size
 const TEXT_INSET: f64 = 5.0;
 const HEADER_PADDING: f64 = 5.0;
+// Cross-axis gutter: a strip of the parent's body left visible on one
+// side of the children (bottom for horizontal splits, right for
+// vertical splits) so containment is obvious without doubling padding
+// on every side.
+const CHILD_INSET: f64 = 3.0;
 const DEFAULT_WIDTH: i32 = 600;
 const DEFAULT_HEIGHT: i32 = 480;
 const APP_ID: &str = "org.duvis.viewer";
@@ -64,6 +73,12 @@ struct State {
 impl State {
     fn header(&self) -> f64 {
         self.font_size + HEADER_PADDING
+    }
+    fn min_w(&self) -> f64 {
+        MIN_CHARS * AVG_GLYPH_FRAC * self.font_size + 2.0 * TEXT_INSET
+    }
+    fn min_h(&self) -> f64 {
+        self.header()
     }
 }
 
@@ -109,7 +124,7 @@ fn draw_node(cr: &cairo::Context, state: &State, idx: usize, r: Rect) {
 }
 
 fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors: &[usize]) {
-    if r.w < MIN_DIM || r.h < MIN_DIM {
+    if r.w < state.min_w() || r.h < state.min_h() {
         return;
     }
 
@@ -128,9 +143,11 @@ fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors:
     }
 
     let header = state.header();
-    let child_y = r.y + header;
-    let child_height = r.h - header;
-    if child_height < MIN_DIM {
+    let body_x = r.x;
+    let body_y = r.y + header;
+    let body_w = r.w;
+    let body_h = r.h - header;
+    if body_w < state.min_w() || body_h < state.min_h() {
         return;
     }
 
@@ -139,14 +156,32 @@ fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors:
         return;
     }
 
-    let horizontal = r.w >= child_height;
-    let span = if horizontal { r.w } else { child_height };
+    let horizontal = body_w >= body_h;
+    let span = if horizontal { body_w } else { body_h };
+    let min_slice = if horizontal { state.min_w() } else { state.min_h() };
+
+    // Reserve a CHILD_INSET strip of parent body on the cross axis: bottom
+    // for horizontal layouts, right for vertical. Children's split-axis
+    // slices remain proportional; only the cross dim shrinks by the gutter.
+    let cross_dim = if horizontal {
+        body_h - CHILD_INSET
+    } else {
+        body_w - CHILD_INSET
+    };
+    let cross_min = if horizontal {
+        state.min_h()
+    } else {
+        state.min_w()
+    };
+    if cross_dim < cross_min {
+        return;
+    }
 
     // Classify children: any whose proportional slice along the split axis
-    // is below MIN_DIM goes into the "excess" bucket and is drawn as one
+    // is below min_slice goes into the "excess" bucket and is drawn as one
     // composite "+N more" rectangle covering its combined slice. Preserves
     // the slice sizes of the kept children.
-    let threshold = MIN_DIM * total as f64 / span;
+    let threshold = min_slice * total as f64 / span;
     let mut kept: Vec<usize> = Vec::with_capacity(children.len());
     let mut excess_count: usize = 0;
     let mut excess_total: u64 = 0;
@@ -161,16 +196,16 @@ fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors:
     }
 
     let excess_slice = (excess_total as f64 / total as f64) * span;
-    let has_excess = excess_count > 0 && excess_slice >= MIN_DIM;
-    // If the excess bucket can't form a MIN_DIM rectangle of its own, fold
-    // its share back into the kept children (renormalize) so the body has
-    // no unclaimed gap.
+    let has_excess = excess_count > 0 && excess_slice >= min_slice;
+    // If the excess bucket can't make a min_slice rectangle of its own,
+    // fold its share back into the kept children (renormalize) so the
+    // body has no unclaimed gap.
     let denom: u64 = if has_excess { total } else { total - excess_total };
     if denom == 0 {
         return;
     }
 
-    let mut cur_x = r.x;
+    let mut cur_x = body_x;
     let mut cur_y_off = 0.0;
     for &c in &kept {
         let size = state.duvis.entry(c).size() as f64;
@@ -178,15 +213,15 @@ fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors:
         let sub = if horizontal {
             Rect {
                 x: cur_x,
-                y: child_y,
+                y: body_y,
                 w: s,
-                h: child_height,
+                h: cross_dim,
             }
         } else {
             Rect {
-                x: r.x,
-                y: child_y + cur_y_off,
-                w: r.w,
+                x: body_x,
+                y: body_y + cur_y_off,
+                w: cross_dim,
                 h: s,
             }
         };
@@ -202,15 +237,15 @@ fn draw_tree(cr: &cairo::Context, state: &State, idx: usize, r: Rect, ancestors:
         let sub = if horizontal {
             Rect {
                 x: cur_x,
-                y: child_y,
+                y: body_y,
                 w: excess_slice,
-                h: child_height,
+                h: cross_dim,
             }
         } else {
             Rect {
-                x: r.x,
-                y: child_y + cur_y_off,
-                w: r.w,
+                x: body_x,
+                y: body_y + cur_y_off,
+                w: cross_dim,
                 h: excess_slice,
             }
         };
@@ -246,7 +281,7 @@ fn draw(cr: &cairo::Context, state: &State, width: f64, height: f64) {
     // anywhere inside the area but above the next band picks
     // that ancestor (smallest-area wins, see handle_click).
     for depth in 0..path.len().saturating_sub(1) {
-        if width < MIN_DIM || cur_h < MIN_DIM {
+        if width < state.min_w() || cur_h < state.min_h() {
             return;
         }
         let idx = path[depth];
