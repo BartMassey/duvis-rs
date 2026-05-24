@@ -140,32 +140,27 @@ impl Duvis {
     }
 
     /// Build tree using du's natural post-order output; no sort.
+    /// In post-order, a directory's descendants appear before the
+    /// directory itself, so the subtree of a direct child at index
+    /// `i` is the run `[prev_child_end .. i + 1)`.
     fn build_tree_postorder(&mut self, start: usize, end: usize, depth: u32) {
         if start >= end {
             return;
         }
         let parent = end - 1;
         self.entries[parent].depth = depth;
-        let parent_components = self.entries[parent].components.len();
-        let child_components = parent_components + 1;
+        let child_components = self.entries[parent].components.len() + 1;
 
         let mut children: Vec<usize> = Vec::new();
+        let mut subtree_start = start;
         let mut i = start;
         while i < end - 1 {
-            if self.entries[i].components.len() != child_components {
-                i += 1;
-                continue;
+            if self.entries[i].components.len() == child_components {
+                children.push(i);
+                self.build_tree_postorder(subtree_start, i + 1, depth + 1);
+                subtree_start = i + 1;
             }
-            let mut j = i + 1;
-            while j < end - 1 && self.entries[j].components.len() > child_components {
-                j += 1;
-            }
-            children.push(i);
-            self.entries[i].depth = depth + 1;
-            if j > i + 1 {
-                self.build_tree_postorder(i, j, depth + 1);
-            }
-            i = j;
+            i += 1;
         }
         self.entries[parent].children = children;
     }
