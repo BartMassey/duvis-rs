@@ -7,8 +7,10 @@
 
 use clap::Parser;
 use std::cmp::Ordering;
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter, Write, stdin};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::process::exit;
 use std::sync::atomic::{AtomicUsize, Ordering as AOrd};
 
@@ -43,7 +45,7 @@ struct Args {
 
 struct Entry {
     size: u64,
-    components: Vec<String>,
+    components: Vec<OsString>,
     depth: u32,
     children: Vec<usize>,
 }
@@ -81,29 +83,35 @@ impl Duvis {
 
             line_number += 1;
 
-            let line = std::str::from_utf8(&buf).map_err(|_| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("line {}: non-UTF8 input", line_number),
-                )
-            })?;
+            let ws_pos = buf
+                .iter()
+                .position(|&b| b == b' ' || b == b'\t')
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("line {}: buffer format error", line_number),
+                    )
+                })?;
 
-            let ws_pos = line.find(|c: char| c == ' ' || c == '\t').ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("line {}: buffer format error", line_number),
-                )
-            })?;
-
-            let size: u64 = line[..ws_pos].parse().map_err(|_| {
+            let size_str = std::str::from_utf8(&buf[..ws_pos]).map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
                     format!("line {}: size parse failure", line_number),
                 )
             })?;
 
-            let path = &line[ws_pos + 1..];
-            let mut components: Vec<String> = path.split('/').map(String::from).collect();
+            let size: u64 = size_str.parse().map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("line {}: size parse failure", line_number),
+                )
+            })?;
+
+            let path = &buf[ws_pos + 1..];
+            let mut components: Vec<OsString> = path
+                .split(|&b| b == b'/')
+                .map(|s| OsString::from_vec(s.to_vec()))
+                .collect();
             if components.last().is_some_and(|s| s.is_empty()) {
                 components.pop();
             }
@@ -213,14 +221,16 @@ impl Duvis {
     fn show_entries<W: Write>(&self, out: &mut W, idx: usize) -> io::Result<()> {
         let e = &self.entries[idx];
         if e.depth == 0 {
-            write!(out, "{}", e.components[0])?;
+            out.write_all(e.components[0].as_bytes())?;
             for i in 1..self.base_depth {
-                write!(out, "/{}", e.components[i])?;
+                out.write_all(b"/")?;
+                out.write_all(e.components[i].as_bytes())?;
             }
             writeln!(out, " {}", e.size)?;
         } else {
             Self::indent(out, e.depth)?;
-            writeln!(out, "{} {}", e.components.last().unwrap(), e.size)?;
+            out.write_all(e.components.last().unwrap().as_bytes())?;
+            writeln!(out, " {}", e.size)?;
         }
         for &c in &e.children {
             self.show_entries(out, c)?;
@@ -231,7 +241,8 @@ impl Duvis {
     fn show_entries_raw<W: Write>(&self, out: &mut W) -> io::Result<()> {
         for e in &self.entries {
             Self::indent(out, e.depth)?;
-            writeln!(out, "{} {}", e.components.last().unwrap(), e.size)?;
+            out.write_all(e.components.last().unwrap().as_bytes())?;
+            writeln!(out, " {}", e.size)?;
         }
         Ok(())
     }
