@@ -1,0 +1,88 @@
+.TH DUVIS 1 "2026-05-24"
+.SH NAME
+duvis \- ASCII visualization of du disk usage information
+.SH SYNOPSIS
+.B duvis
+.RB [ \-p ]
+.RB [ \-g ]
+.RB [ \-r ]
+.RB [ \-0 ]
+.RB [ \-\-unsorted ]
+.RB [ \-\-print0 ]
+.RI [ file ]
+.SH DESCRIPTION
+.PP
+The
+.I duvis
+program provides an ASCII visualization of the output of
+.IR du (1)
+suitable for understanding how storage is being used. The
+output of
+.I duvis
+is the paths that were input, with
+only the last component shown except at the root, indented
+according to nesting depth, and sorted at each level by
+decreasing size, with ties broken alphabetically.
+.SH OPTIONS
+.IP \-p
+Ingest preorder-laid-out input: lex-sort the entries
+before building the tree. Use this when the input was not
+produced by an in-order traversal of
+.IR du (1)
+(for example, when it has been sorted or filtered).
+.IP \-g
+Output to an
+.IR xdu (1)\-style
+graphical user interface. Recognized
+for compatibility but not yet implemented in the Rust port.
+.IP \-r
+Raw output: emit entries in the order they are currently
+held in the internal array, indented by depth. Useful for
+debugging ingestion.
+.IP \-0
+Treat input records as NUL-terminated rather than
+newline-terminated. Pair with
+.BR "du \-0" .
+.IP \-\-unsorted
+Do not sort children by size at display time; preserve the
+order in which the tree was built.
+.IP \-\-print0
+NUL-terminate output records instead of using newlines (cf.
+.BR "find \-print0" ).
+.SH USAGE
+.PP
+As with
+.IR xdu (1),
+you invoke
+.I duvis
+on the output of
+.IR du (1).
+If a
+.I file
+argument is given, input is read from there; otherwise it
+is read from standard input, so either a pipe or a file is
+fine. The
+.I du
+output must be complete, in the sense that every prefix of
+every path in the file has an entry (with the exception of
+the common prefix that was given to
+.IR du );
+both relative and absolute paths work.
+.SH AUTHORS
+.I "Bart Massey <bart.massey@gmail.com>"
+.br
+.I "Andrew Graham <graham4@pdx.edu>"
+.PP
+The Rust port was written by Bart Massey in 2026. The
+original C implementation was written by Bart Massey
+starting before 2014, with the GTK graphical frontend
+contributed by Andrew Graham.
+.SH "SEE ALSO"
+.BR du (1),
+.BR xdu (1)
+.SH LICENSE
+This software is licensed under the "MIT License". Please
+see the file
+.I LICENSE.txt
+in the source distribution of this software for license
+terms.
