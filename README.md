@@ -1,11 +1,25 @@
 # `duvis` - a `du` visualizer
 Copyright © 2014 Bart Massey
 
-This is a Rust port of the original C implementation.
-Upstream repositories:
+## History
 
-- <https://github.com/BartMassey/duvis>
-- <https://github.com/andeh575/duvis>
+The original `duvis` was written in C by Bart Massey
+starting 2014-03-30. Upstream:
+<https://github.com/BartMassey/duvis>.
+
+Andrew Graham picked it up as a student project in mid-2014
+(first commit 2014-05-21). His main lasting addition was a
+GTK-based graphical frontend, broken out into its own
+translation unit in December 2016. Upstream:
+<https://github.com/andeh575/duvis>.
+
+This repository is a Rust port begun in 2026. The port
+follows the design of the `duvis-bart` line — direct
+ingestion of `du(1)`'s natural post-order output, with the
+size-sort done at display time so the `-p` and default
+output are identical on well-formed input. The graphical
+frontend has not yet been ported; `-g` is recognized but
+stubbed.
 
 ## Rationale
 
@@ -60,6 +74,11 @@ it it necessary to install the following packages:
 2. Cairo: cairo2-dev
 
 `GTK` is the backend utilized by `Cairo` to draw all graphics.
+
+## Acknowledgements
+
+Thanks to Andrew Graham for his work on the original C
+implementation, in particular the GTK graphical frontend.
 
 ## License
 
