@@ -8,7 +8,7 @@ use clap::Parser;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter, stdin};
 use std::process::exit;
-use std::sync::atomic::{AtomicUsize, Ordering as AOrd};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AOrd};
 
 #[cfg(feature = "gui")]
 mod gui;
@@ -54,11 +54,20 @@ struct Args {
     #[arg(long = "print0")]
     print0: bool,
 
+    /// Print progress/status messages to stderr
+    #[arg(short = 'v', long = "verbose")]
+    verbose: bool,
+
     /// du output file (defaults to stdin)
     file: Option<String>,
 }
 
+static VERBOSE: AtomicBool = AtomicBool::new(false);
+
 fn status(msg: &str) {
+    if !VERBOSE.load(AOrd::SeqCst) {
+        return;
+    }
     static PASS: AtomicUsize = AtomicUsize::new(1);
     let p = PASS.fetch_add(1, AOrd::SeqCst);
     eprintln!("({}) {}", p, msg);
@@ -66,10 +75,13 @@ fn status(msg: &str) {
 
 fn main() -> io::Result<()> {
     let args = Args::parse();
+    VERBOSE.store(args.verbose, AOrd::SeqCst);
 
     let reader: Box<dyn BufRead> = match &args.file {
         Some(path) => {
-            eprintln!("open {}", path);
+            if args.verbose {
+                eprintln!("open {}", path);
+            }
             Box::new(BufReader::with_capacity(
                 IO_BUFFER_LENGTH,
                 File::open(path)?,

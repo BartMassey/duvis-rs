@@ -9,6 +9,7 @@ duvis \- ASCII visualization of du disk usage information
 .RB [ \-0 ]
 .RB [ \-\-unsorted ]
 .RB [ \-\-print0 ]
+.RB [ \-v | \-\-verbose ]
 .RB [ \-\-font\-size " " \fIpt\fR ]
 .RI [ file ]
 .SH DESCRIPTION
@@ -52,6 +53,12 @@ order in which the tree was built.
 .IP \-\-print0
 NUL-terminate output records instead of using newlines (cf.
 .BR "find \-print0" ).
+.IP "\-v, \-\-verbose"
+Print progress/status messages to standard error as each
+processing pass runs (parsing, tree building, sorting,
+emitting, etc.). Without this flag,
+.I duvis
+is silent on stderr in normal operation.
 .IP "\-\-font\-size \fIpt\fR"
 Font size in points for the GUI label text. Defaults to
 .BR 10 .
