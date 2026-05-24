@@ -1,26 +1,6 @@
 # `duvis` - a `du` visualizer
 Copyright © 2014 Bart Massey
 
-## History
-
-The original `duvis` was written in C by Bart Massey
-starting 2014-03-30. Upstream:
-<https://github.com/BartMassey/duvis>.
-
-Andrew Graham picked it up as a student project in mid-2014
-(first commit 2014-05-21). His main lasting addition was a
-GTK-based graphical frontend, broken out into its own
-translation unit in December 2016. Upstream:
-<https://github.com/andeh575/duvis>.
-
-This repository is a Rust port begun in 2026. The port
-follows the design of the `duvis-bart` line — direct
-ingestion of `du(1)`'s natural post-order output, with the
-size-sort done at display time so the `-p` and default
-output are identical on well-formed input. The graphical
-frontend has not yet been ported; `-g` is recognized but
-stubbed.
-
 ## Rationale
 
 I constructed `duvis` to take the place of the standard
@@ -75,6 +55,25 @@ it it necessary to install the following packages:
 
 `GTK` is the backend utilized by `Cairo` to draw all graphics.
 
+## History
+
+The original `duvis` was written in C by Bart Massey
+starting sometime before 2014. Upstream repo is
+<https://github.com/BartMassey/duvis>.
+
+Andrew Graham picked it up as a student project in
+mid-2014. His main lasting addition was a GTK-based
+graphical frontend, broken out into its own translation unit
+in 2016. Upstream repo is
+<https://github.com/andeh575/duvis>.
+
+This repository is a 2026 Rust port. The port follows the
+design of the original `duvis-bart` code — direct ingestion
+of `du(1)`'s natural post-order output, with the size-sort
+done at display time so the `-p` and default output are
+identical on well-formed input. The graphical frontend has
+not yet been ported; `-g` is recognized but stubbed.
+
 ## Acknowledgements
 
 Thanks to Andrew Graham for his work on the original C
@@ -83,5 +82,5 @@ implementation, in particular the GTK graphical frontend.
 ## License
 
 This program is licensed under the "MIT License".  Please
-see the file `COPYING` in the source distribution of this
-software for license terms.
+see the file `LICENSE.txt` in the source distribution of
+this software for license terms.
