@@ -23,7 +23,7 @@ const IO_BUFFER_LENGTH: usize = 1024 * 1024;
     about = "ASCII visualization of du(1) disk usage information"
 )]
 struct Args {
-    /// Build the tree in preorder (sort children by size desc, then name asc)
+    /// Ingest preorder-laid-out input (lex-sort entries before building)
     #[arg(short = 'p')]
     preorder: bool,
 
@@ -38,6 +38,10 @@ struct Args {
     /// Input lines are NUL-terminated (use with `du -0`)
     #[arg(short = '0')]
     zero: bool,
+
+    /// Do not sort children by size at display time; preserve build order
+    #[arg(long)]
+    unsorted: bool,
 
     /// du output file (defaults to stdin)
     file: Option<String>,
@@ -139,33 +143,42 @@ impl Duvis {
         });
     }
 
-    /// Build tree using du's natural post-order output; no sort.
-    /// In post-order, a directory's descendants appear before the
-    /// directory itself, so the subtree of a direct child at index
-    /// `i` is the run `[prev_child_end .. i + 1)`.
+    /// Build tree from du's natural post-order output.
+    /// Subtree of a direct child at index `i` is `[prev_child_end .. i + 1)`.
     fn build_tree_postorder(&mut self, start: usize, end: usize, depth: u32) {
         if start >= end {
             return;
         }
         let parent = end - 1;
         self.entries[parent].depth = depth;
-        let child_components = self.entries[parent].components.len() + 1;
+        let parent_components = self.entries[parent].components.len();
+        let child_components = parent_components + 1;
 
         let mut children: Vec<usize> = Vec::new();
         let mut subtree_start = start;
         let mut i = start;
         while i < end - 1 {
-            if self.entries[i].components.len() == child_components {
+            let ic = self.entries[i].components.len();
+            if ic == child_components {
+                if self.entries[i].components[parent_components - 1]
+                    != self.entries[parent].components[parent_components - 1]
+                {
+                    eprintln!("index {}: unexpected child", i + 1);
+                    exit(1);
+                }
                 children.push(i);
                 self.build_tree_postorder(subtree_start, i + 1, depth + 1);
                 subtree_start = i + 1;
+            } else if ic < child_components {
+                eprintln!("index {}: unexpected entry at or above parent level", i + 1);
+                exit(1);
             }
             i += 1;
         }
         self.entries[parent].children = children;
     }
 
-    /// Build tree in preorder; sort each level by descending size, then name.
+    /// Build tree from lex-sorted (preorder-laid-out) input.
     fn build_tree_preorder(&mut self, start: usize, end: usize, depth: u32) {
         let offset = depth as usize + self.base_depth;
         if self.entries[start].components.len() != offset {
@@ -196,14 +209,25 @@ impl Duvis {
             i = j;
         }
 
-        children.sort_by(|&a, &b| {
-            let ea = &self.entries[a];
-            let eb = &self.entries[b];
-            eb.size
-                .cmp(&ea.size)
-                .then_with(|| ea.components.last().cmp(&eb.components.last()))
-        });
         self.entries[start].children = children;
+    }
+
+    /// Sort every node's children by descending size, ties broken by leaf
+    /// name. Runs as a single pass over all entries; the borrow checker
+    /// is appeased by swapping the children list out for the duration of
+    /// the sort so the comparator can read sizes from `self.entries`.
+    fn sort_children_by_size(&mut self) {
+        for idx in 0..self.entries.len() {
+            let mut children = std::mem::take(&mut self.entries[idx].children);
+            children.sort_by(|&a, &b| {
+                let ea = &self.entries[a];
+                let eb = &self.entries[b];
+                eb.size
+                    .cmp(&ea.size)
+                    .then_with(|| ea.components.last().cmp(&eb.components.last()))
+            });
+            self.entries[idx].children = children;
+        }
     }
 
     fn indent<W: Write>(out: &mut W, depth: u32) -> io::Result<()> {
@@ -288,6 +312,11 @@ fn main() -> io::Result<()> {
         root_idx = n - 1;
         duvis.base_depth = duvis.entries[root_idx].components.len();
         duvis.build_tree_postorder(0, n, 0);
+    }
+
+    if !args.unsorted && !args.raw {
+        status("Sorting children by size.");
+        duvis.sort_children_by_size();
     }
 
     let stdout = io::stdout();
