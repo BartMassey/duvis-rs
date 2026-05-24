@@ -40,20 +40,8 @@ only the last component shown except at the root, indented
 according to nesting depth, and sorted at each level by
 decreasing size, with ties broken alphabetically.
 
-## Options
-
-1. `-p`         Ingest preorder-laid-out input (lex-sort
-   entries before building the tree)
-2. `-g`         Open the GTK4/Cairo graphical view
-3. `-r`         Raw output: emit entries in current array
-   order, indented by depth
-4. `-0`         Treat input records as NUL-terminated
-   (pair with `du -0`)
-5. `--unsorted` Preserve build order instead of sorting
-   children by size at display time
-6. `--print0`   NUL-terminate output records
-7. `--font-size PT`  GUI font size in points (default
-   `10`); also controls the per-node header band height
+See `duvis(1)` or `duvis --help` for the full set of
+command-line options.
 
 ## Dependencies
 
