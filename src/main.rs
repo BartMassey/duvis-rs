@@ -43,6 +43,10 @@ struct Args {
     #[arg(long)]
     unsorted: bool,
 
+    /// NUL-terminate output records instead of newline (cf. find -print0)
+    #[arg(long = "print0")]
+    print0: bool,
+
     /// du output file (defaults to stdin)
     file: Option<String>,
 }
@@ -237,7 +241,7 @@ impl Duvis {
         Ok(())
     }
 
-    fn show_entries<W: Write>(&self, out: &mut W, idx: usize) -> io::Result<()> {
+    fn show_entries<W: Write>(&self, out: &mut W, idx: usize, term: u8) -> io::Result<()> {
         let e = &self.entries[idx];
         if e.depth == 0 {
             out.write_all(e.components[0].as_bytes())?;
@@ -245,23 +249,26 @@ impl Duvis {
                 out.write_all(b"/")?;
                 out.write_all(e.components[i].as_bytes())?;
             }
-            writeln!(out, " {}", e.size)?;
+            write!(out, " {}", e.size)?;
+            out.write_all(&[term])?;
         } else {
             Self::indent(out, e.depth)?;
             out.write_all(e.components.last().unwrap().as_bytes())?;
-            writeln!(out, " {}", e.size)?;
+            write!(out, " {}", e.size)?;
+            out.write_all(&[term])?;
         }
         for &c in &e.children {
-            self.show_entries(out, c)?;
+            self.show_entries(out, c, term)?;
         }
         Ok(())
     }
 
-    fn show_entries_raw<W: Write>(&self, out: &mut W) -> io::Result<()> {
+    fn show_entries_raw<W: Write>(&self, out: &mut W, term: u8) -> io::Result<()> {
         for e in &self.entries {
             Self::indent(out, e.depth)?;
             out.write_all(e.components.last().unwrap().as_bytes())?;
-            writeln!(out, " {}", e.size)?;
+            write!(out, " {}", e.size)?;
+            out.write_all(&[term])?;
         }
         Ok(())
     }
@@ -322,15 +329,17 @@ fn main() -> io::Result<()> {
     let stdout = io::stdout();
     let mut out = BufWriter::new(stdout.lock());
 
+    let term: u8 = if args.print0 { 0 } else { b'\n' };
+
     if args.gui {
         eprintln!("GUI not implemented in this Rust port yet.");
         exit(1);
     } else if args.raw {
         status("Emitting entries.");
-        duvis.show_entries_raw(&mut out)?;
+        duvis.show_entries_raw(&mut out, term)?;
     } else {
         status("Emitting tree.");
-        duvis.show_entries(&mut out, root_idx)?;
+        duvis.show_entries(&mut out, root_idx, term)?;
     }
 
     Ok(())
