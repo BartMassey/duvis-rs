@@ -9,6 +9,7 @@ duvis \- ASCII visualization of du disk usage information
 .RB [ \-0 ]
 .RB [ \-\-unsorted ]
 .RB [ \-\-print0 ]
+.RB [ \-\-font\-size " " \fIpt\fR ]
 .RI [ file ]
 .SH DESCRIPTION
 .PP
@@ -51,6 +52,10 @@ order in which the tree was built.
 .IP \-\-print0
 NUL-terminate output records instead of using newlines (cf.
 .BR "find \-print0" ).
+.IP "\-\-font\-size \fIpt\fR"
+Font size in points for the GUI label text. Defaults to
+.BR 10 .
+Affects the height of each node's header band as well.
 .SH USAGE
 .PP
 As with

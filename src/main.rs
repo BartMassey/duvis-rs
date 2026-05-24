@@ -33,6 +33,11 @@ struct Args {
     #[arg(short = 'g')]
     gui: bool,
 
+    /// GUI font size in points (used with -g)
+    #[cfg(feature = "gui")]
+    #[arg(long = "font-size", value_name = "PT", default_value_t = 10.0)]
+    font_size: f64,
+
     /// Raw output: emit entries in current array order, indented by depth
     #[arg(short = 'r')]
     raw: bool,
@@ -111,7 +116,7 @@ fn main() -> io::Result<()> {
     #[cfg(feature = "gui")]
     if args.gui {
         status("Launching GUI.");
-        let code = gui::run(duvis, root_idx);
+        let code = gui::run(duvis, root_idx, args.font_size);
         exit(code);
     }
 

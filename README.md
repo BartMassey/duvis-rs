@@ -52,6 +52,8 @@ decreasing size, with ties broken alphabetically.
 5. `--unsorted` Preserve build order instead of sorting
    children by size at display time
 6. `--print0`   NUL-terminate output records
+7. `--font-size PT`  GUI font size in points (default
+   `10`); also controls the per-node header band height
 
 ## Dependencies
 
