@@ -42,18 +42,37 @@ decreasing size, with ties broken alphabetically.
 
 ## Options
 
-1. -p    Output in preorder format
-2. -g    Output to `xdu` style graphical user interface
+1. `-p`         Ingest preorder-laid-out input (lex-sort
+   entries before building the tree)
+2. `-g`         Open the GTK4/Cairo graphical view
+3. `-r`         Raw output: emit entries in current array
+   order, indented by depth
+4. `-0`         Treat input records as NUL-terminated
+   (pair with `du -0`)
+5. `--unsorted` Preserve build order instead of sorting
+   children by size at display time
+6. `--print0`   NUL-terminate output records
 
 ## Dependencies
 
-In order to properly display any graphical portion of `duvis`
-it it necessary to install the following packages:
+The graphical frontend (`-g`) needs GTK4 and Cairo
+development headers. On Debian/Ubuntu:
 
-1. GTK+-3.0: libgtk-3-dev
-2. Cairo: cairo2-dev
+```
+sudo apt install libgtk-4-dev libcairo2-dev
+```
 
 `GTK` is the backend utilized by `Cairo` to draw all graphics.
+
+The GUI is gated behind a default-on `gui` Cargo feature.
+To build without GTK at all:
+
+```
+cargo build --release --no-default-features
+```
+
+This produces a CLI-only binary; the `-g` flag is removed
+from the help output and from the parser.
 
 ## History
 
@@ -71,8 +90,9 @@ This repository is a 2026 Rust port. The port follows the
 design of the original `duvis-bart` code — direct ingestion
 of `du(1)`'s natural post-order output, with the size-sort
 done at display time so the `-p` and default output are
-identical on well-formed input. The graphical frontend has
-not yet been ported; `-g` is recognized but stubbed.
+identical on well-formed input. The GTK graphical frontend
+has been ported to GTK4/Cairo as a fairly literal
+translation of Andrew Graham's original.
 
 ## Acknowledgements
 

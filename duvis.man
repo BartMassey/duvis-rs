@@ -31,10 +31,12 @@ produced by an in-order traversal of
 .IR du (1)
 (for example, when it has been sorted or filtered).
 .IP \-g
-Output to an
-.IR xdu (1)\-style
-graphical user interface. Recognized
-for compatibility but not yet implemented in the Rust port.
+Open a GTK4/Cairo graphical view in the style of
+.IR xdu (1).
+The view is a recursive rectangle split: each node gets a
+header band labeling it, and its children are laid out
+proportionally in the area below, alternating horizontal
+and vertical splits with the aspect ratio.
 .IP \-r
 Raw output: emit entries in the order they are currently
 held in the internal array, indented by depth. Useful for

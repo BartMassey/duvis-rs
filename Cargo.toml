@@ -5,8 +5,13 @@ edition = "2024"
 description = "ASCII visualization of du(1) disk usage output"
 license = "MIT"
 
+[features]
+default = ["gui"]
+gui = ["dep:gtk4"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+gtk4 = { version = "0.9", optional = true }
 
 [profile.release]
 opt-level = 3
