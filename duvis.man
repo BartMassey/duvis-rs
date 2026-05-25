@@ -82,6 +82,26 @@ every path in the file has an entry (with the exception of
 the common prefix that was given to
 .IR du );
 both relative and absolute paths work.
+.PP
+A typical invocation to visualize an entire filesystem
+graphically is:
+.PP
+.RS
+.nf
+du \-a \-x \-0 / >/tmp/du
+duvis \-0 \-g /tmp/du
+.fi
+.RE
+.PP
+The
+.B \-0
+on both sides keeps paths with embedded newlines intact,
+.B \-a
+includes file entries (not just directories), and
+.B \-x
+keeps
+.I du
+from crossing filesystem boundaries.
 .SH AUTHORS
 .I "Bart Massey <bart.massey@gmail.com>"
 .br

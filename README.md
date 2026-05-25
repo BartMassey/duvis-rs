@@ -40,6 +40,18 @@ only the last component shown except at the root, indented
 according to nesting depth, and sorted at each level by
 decreasing size, with ties broken alphabetically.
 
+A typical invocation to visualize an entire filesystem
+graphically:
+
+```
+du -a -x -0 / >/tmp/du
+duvis -0 -g /tmp/du
+```
+
+The `-0` on both sides keeps paths with embedded newlines
+intact, `-a` includes file entries (not just directories),
+and `-x` keeps `du` from crossing filesystem boundaries.
+
 See `duvis(1)` or `duvis --help` for the full set of
 command-line options.
 
